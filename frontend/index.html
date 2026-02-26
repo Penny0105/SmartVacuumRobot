@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+  <title>Robot Hút Bụi Thông Minh</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      color: #ffffff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      animation: fadeInDown 0.8s ease;
+    }
+
+    .header h1 {
+      font-size: 2.2rem;
+      font-weight: 600;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      margin-bottom: 10px;
+    }
+
+    .status-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 0.95rem;
+    }
+
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      background: #4ade80;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 25px;
+      animation: fadeIn 1s ease;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      padding: 25px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .panel h2 {
+      font-size: 1.4rem;
+      margin-bottom: 20px;
+      text-align: center;
+      font-weight: 500;
+      color: #a5d8ff;
+    }
+
+    /* Control Panel */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .control-row {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+    }
+
+    .control-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      color: white;
+      width: 120px;
+      height: 60px;
+      border-radius: 15px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .control-btn:before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.2);
+      transition: left 0.3s ease;
+    }
+
+    .control-btn:hover:before {
+      left: 100%;
+    }
+
+    .control-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .control-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .control-btn.forward {
+      background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+    }
+
+    .control-btn.backward {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+
+    .control-btn.left, .control-btn.right {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+
+    .mode-btn {
+      width: 250px;
+      height: 65px;
+      background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
+      font-size: 1.1rem;
+      margin-top: 10px;
+    }
+
+    .mode-btn.auto-mode {
+      background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    }
+
+    /* Camera Panel */
+    .camera-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .camera-frame {
+      width: 100%;
+      max-width: 500px;
+      background: #000;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      position: relative;
+    }
+
+    .camera-frame img {
+      width: 100%;
+      height: auto;
+      display: block;
+      transform: rotate(180deg);
+    }
+
+    .camera-overlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .live-indicator {
+      width: 8px;
+      height: 8px;
+      background: #ef4444;
+      border-radius: 50%;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0.3; }
+    }
+
+    /* Icons using Unicode */
+    .icon-forward::before { content: "▲"; }
+    .icon-backward::before { content: "▼"; }
+    .icon-left::before { content: "◄"; }
+    .icon-right::before { content: "►"; }
+    .icon-auto::before { content: "⚡"; }
+    .icon-manual::before { content: "🎮"; }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+
+      .header h1 {
+        font-size: 1.8rem;
+      }
+
+      .control-btn {
+        width: 100px;
+        height: 55px;
+        font-size: 0.9rem;
+      }
+
+      .mode-btn {
+        width: 220px;
+        height: 60px;
+        font-size: 1rem;
+      }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Instructions Panel */
+    .instructions {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 15px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .instructions h3 {
+      font-size: 1rem;
+      margin-bottom: 8px;
+      color: #fbbf24;
+    }
+
+    .instructions ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .instructions li:before {
+      content: "• ";
+      color: #60a5fa;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🤖 Robot Hút Bụi Thông Minh</h1>
+    <div class="status-bar">
+      <span class="status-indicator"></span>
+      <span id="status-text">Đang kết nối...</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Control Panel -->
+    <div class="panel">
+      <h2>⚙️ Điều Khiển</h2>
+      <div class="controls">
+        <div class="control-row">
+          <button class="control-btn forward" 
+                  onmousedown="sendCommand('go')" 
+                  onmouseup="sendCommand('stop')"
+                  ontouchstart="sendCommand('go')" 
+                  ontouchend="sendCommand('stop')">
+            <span class="icon-forward"></span> TIẾN
+          </button>
+        </div>
+        <div class="control-row">
+          <button class="control-btn left" 
+                  onmousedown="sendCommand('left')" 
+                  onmouseup="sendCommand('stop')"
+                  ontouchstart="sendCommand('left')" 
+                  ontouchend="sendCommand('stop')">
+            <span class="icon-left"></span> TRÁI
+          </button>
+          <button class="control-btn right" 
+                  onmousedown="sendCommand('right')" 
+                  onmouseup="sendCommand('stop')"
+                  ontouchstart="sendCommand('right')" 
+                  ontouchend="sendCommand('stop')">
+            <span class="icon-right"></span> PHẢI
+          </button>
+        </div>
+        <div class="control-row">
+          <button class="control-btn backward" 
+                  onmousedown="sendCommand('back')" 
+                  onmouseup="sendCommand('stop')"
+                  ontouchstart="sendCommand('back')" 
+                  ontouchend="sendCommand('stop')">
+            <span class="icon-backward"></span> LÙI
+          </button>
+        </div>
+        <button id="modeBtn" class="control-btn mode-btn" onclick="toggleMode()">
+          <span class="icon-auto"></span> CHẾ ĐỘ TỰ ĐỘNG
+        </button>
+      </div>
+
+      <div class="instructions">
+        <h3>📖 Hướng dẫn sử dụng</h3>
+        <ul>
+          <li>Nhấn giữ nút điều hướng để di chuyển</li>
+          <li>Thả nút để dừng lại</li>
+          <li>Chế độ tự động: Robot tự tránh vật cản</li>
+          <li>Chế độ thủ công: Điều khiển bằng tay</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Camera Panel -->
+    <div class="panel">
+      <h2>📹 Camera Trực Tiếp</h2>
+      <div class="camera-container">
+        <div class="camera-frame">
+          <div class="camera-overlay">
+            <span class="live-indicator"></span>
+            <span>LIVE</span>
+          </div>
+          <img id="cameraStream" src="/camera_stream" alt="Camera Stream">
+        </div>
+        <div style="text-align: center; font-size: 0.9rem; color: #94a3b8;">
+          <p id="mode-status">🎮 Chế độ: <strong>Thủ công</strong></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentMode = 'manual';
+    let isConnected = false;
+
+    // Send command to server
+    function sendCommand(cmd) {
+      fetch('/send_command?cmd=' + cmd)
+        .then(response => {
+          if (response.ok) {
+            isConnected = true;
+            updateStatus();
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          isConnected = false;
+          updateStatus();
+        });
+    }
+
+    // Toggle between auto and manual mode
+    function toggleMode() {
+      const modeBtn = document.getElementById('modeBtn');
+      const modeStatus = document.getElementById('mode-status');
+      
+      if (currentMode === 'manual') {
+        currentMode = 'auto';
+        sendCommand('auto');
+        modeBtn.innerHTML = '<span class="icon-manual"></span> CHẾ ĐỘ THỦ CÔNG';
+        modeBtn.classList.add('auto-mode');
+        modeStatus.innerHTML = '⚡ Chế độ: <strong>Tự động</strong>';
+      } else {
+        currentMode = 'manual';
+        sendCommand('manual');
+        modeBtn.innerHTML = '<span class="icon-auto"></span> CHẾ ĐỘ TỰ ĐỘNG';
+        modeBtn.classList.remove('auto-mode');
+        modeStatus.innerHTML = '🎮 Chế độ: <strong>Thủ công</strong>';
+      }
+    }
+
+    // Update connection status
+    function updateStatus() {
+      const statusText = document.getElementById('status-text');
+      if (isConnected) {
+        statusText.textContent = 'Đã kết nối';
+      } else {
+        statusText.textContent = 'Mất kết nối';
+      }
+    }
+
+    // Refresh camera stream
+    function refreshCamera() {
+      const img = document.getElementById('cameraStream');
+      img.src = '/camera_stream?' + new Date().getTime();
+    }
+
+    // Auto refresh camera every 500ms
+    setInterval(refreshCamera, 500);
+
+    // Initial connection check
+    setTimeout(() => {
+      sendCommand('stop');
+    }, 1000);
+
+    // Prevent context menu on buttons (for mobile)
+    document.querySelectorAll('.control-btn').forEach(btn => {
+      btn.addEventListener('contextmenu', e => e.preventDefault());
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "name": "smartvacuumrobot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Penny0105/SmartVacuumRobot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Penny0105/SmartVacuumRobot/issues"
+  },
+  "homepage": "https://github.com/Penny0105/SmartVacuumRobot#readme",
+  "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^1.4.5-lts.1",
+    "node-fetch": "^2.7.0"
+  }
+}

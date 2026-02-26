@@ -1,10 +1,13 @@
-/* ESP32 Camera Car with Web Control and Dust Sensor */
+/* Dự án Robot hút bụi thông minh với ESP32-CAM (chế độ client) */
 #include "esp_camera.h"
 #include <WiFi.h>
+#include <HTTPClient.h>
 #define CAMERA_MODEL_AI_THINKER
 
 const char* ssid = "Penny";         // Tên WiFi
 const char* password = "123456789";    // Mật khẩu WiFi
+
+const char* serverUrl = "http://10.100.217.248:5000";  // IP laptop chạy Node.js (thay bằng IP của bạn)
 
 #if defined(CAMERA_MODEL_AI_THINKER)
 #define PWDN_GPIO_NUM     32
@@ -31,47 +34,24 @@ const char* password = "123456789";    // Mật khẩu WiFi
 #define RXD 14  // RX from Arduino TX
 #define TXD 15  // TX to Arduino RX
 
-// Dust sensor GP2Y1010AU0F pins
-#define DUST_LED_PIN 2     // GPIO2 để bật LED hồng ngoại
-#define DUST_OUT_PIN 13    // GPIO13 (ADC1_CH5) để đọc analog output
-#define SAMPLING_TIME 280  // Thời gian lấy mẫu 0.28ms
-#define DELTA_TIME 40      // Thời gian chờ 0.04ms
-#define SLEEP_TIME 9680    // Thời gian nghỉ 9.68ms
-
-HardwareSerial uartSerial(2);  // Use UART2
-
-String WiFiAddr = "";  // Lưu địa chỉ IP động
-
-// Biến toàn cục cho cảm biến bụi
-float dustDensity = 0.0;  // Nồng độ bụi mg/m³
-
-void startCameraServer();
-void readDustSensor();
+HardwareSerial uartSerial(2);  // Sử dụng UART2 để giao tiếp với Arduino
 
 void setup() {
-  Serial.begin(115200);
-  Serial.setDebugOutput(true);
-  Serial.println("Starting ESP32-CAM...");
+  Serial.begin(115200);  // Khởi tạo Serial để debug
+  Serial.setDebugOutput(true);  // Bật debug output
+  Serial.println("Starting ESP32-CAM (client mode)...");  // In thông báo khởi động
 
-  // Cấu hình chân cảm biến bụi
-  pinMode(DUST_LED_PIN, OUTPUT);
-  digitalWrite(DUST_LED_PIN, HIGH);  // Tắt LED (active LOW)
-
-  // Kết nối WiFi (Station mode)
+  // Kết nối WiFi (chế độ Station - kết nối vào mạng có sẵn)
   Serial.println("Connecting to WiFi...");
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-  }
+  } 
   Serial.println("");
-  Serial.println("WiFi connected");
-  WiFiAddr = WiFi.localIP().toString();
-  Serial.print("Camera Ready! Use 'http://");
-  Serial.print(WiFiAddr);
-  Serial.println("' to connect");
+  Serial.println("WiFi connected");  // Thông báo kết nối thành công
 
-  // Kiểm tra khởi tạo camera
+  // Khởi tạo camera
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -91,68 +71,72 @@ void setup() {
   config.pin_sscb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 10000000; // Giảm tần số XCLK để ổn định
+  config.xclk_freq_hz = 10000000; // Giảm tần số XCLK để ổn định camera
   config.pixel_format = PIXFORMAT_JPEG;
-  config.frame_size = FRAMESIZE_QVGA; // Giảm độ phân giải để giảm tải
-  config.jpeg_quality = 15; // Tăng chất lượng JPEG nhẹ
-  config.fb_count = 1; // Chỉ dùng 1 frame buffer
+  config.frame_size = FRAMESIZE_QVGA; // Độ phân giải QVGA để giảm tải
+  config.jpeg_quality = 15; // Chất lượng JPEG trung bình
+  config.fb_count = 1; // Số frame buffer
 
-  esp_err_t err = esp_camera_init(&config);
+  esp_err_t err = esp_camera_init(&config);  // Khởi tạo camera
   if (err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x\n", err);
-    // Không return, tiếp tục chạy WiFi
+    while (true);  // Dừng nếu camera lỗi
   } else {
     Serial.println("Camera initialized successfully");
     sensor_t * s = esp_camera_sensor_get();
-    s->set_framesize(s, FRAMESIZE_QVGA);
-    s->set_quality(s, 15);
+    s->set_framesize(s, FRAMESIZE_QVGA);  // Đặt lại độ phân giải
+    s->set_quality(s, 15);  // Đặt chất lượng
   }
 
-  // Khởi động server
-  startCameraServer();
-  Serial.println("Camera server started");
-
-  // Gửi lệnh mặc định: chế độ manual
-  uartSerial.begin(115200, SERIAL_8N1, RXD, TXD);
-  uartSerial.print('M');
+  // Khởi tạo UART và gửi lệnh mặc định: chế độ manual
+  uartSerial.begin(115200, SERIAL_8N1, RXD, TXD);  // Bắt đầu giao tiếp UART với Arduino
+  uartSerial.print('M');  // Gửi lệnh 'M' (manual mode)
   Serial.println("UART initialized, sent 'M' to Arduino");
 }
 
 void loop() {
-  // Đọc cảm biến bụi mỗi 1 giây
-  readDustSensor();
-  delay(1000);
+  sendCameraFrame();  // Gửi frame camera đến server Node.js
+  checkCommands();  // Kiểm tra lệnh từ server
 
-  // Kiểm tra kết nối WiFi
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi disconnected, reconnecting...");
-    WiFi.reconnect();
-  }
+  delay(100);  // Delay để không quá tải CPU
 }
 
-void readDustSensor() {
-  // Bật LED hồng ngoại (active LOW)
-  digitalWrite(DUST_LED_PIN, LOW);
-  delayMicroseconds(SAMPLING_TIME);  // Chờ 0.28ms
+// Hàm gửi frame camera đến server Node.js
+void sendCameraFrame() {
+  camera_fb_t * fb = esp_camera_fb_get();
+  if (!fb) {
+    Serial.println("Camera capture failed");
+    return;
+  }
 
-  // Đọc giá trị ADC từ GPIO13
-  int voMeasured = analogRead(DUST_OUT_PIN);
+  HTTPClient http;
+  http.begin(String(serverUrl) + "/stream");  // Endpoint nhận stream trên server
+  http.addHeader("Content-Type", "image/jpeg");
+  int httpResponseCode = http.POST(fb->buf, fb->len);  // Gửi frame JPEG
 
-  // Tắt LED
-  delayMicroseconds(DELTA_TIME);  // Chờ 0.04ms
-  digitalWrite(DUST_LED_PIN, HIGH);
+  if (httpResponseCode > 0) {
+    Serial.println("Frame sent successfully");
+  } else {
+    Serial.println("Error sending frame");
+  }
 
-  // Chờ 9.68ms để hoàn thành chu kỳ 10ms
-  delayMicroseconds(SLEEP_TIME);
+  http.end();
+  esp_camera_fb_return(fb);
+}
 
-  // Tính điện áp (ESP32 ADC 12-bit, vRef = 3.3V)
-  float vpd = 3.3 / 4096.0;  // Điện áp trên mỗi đơn vị ADC
-  float calcVoltage = voMeasured * vpd;
+// Hàm kiểm tra lệnh từ server Node.js
+void checkCommands() {
+  HTTPClient http;
+  http.begin(String(serverUrl) + "/get_command");  // Endpoint lấy lệnh từ server
+  int httpResponseCode = http.GET();
 
-  // Tính nồng độ bụi (mg/m³) theo Linear Equation
-  dustDensity = 0.17 * calcVoltage - 0.1;
-  if (dustDensity < 0) dustDensity = 0;  // Tránh giá trị âm
+  if (httpResponseCode > 0) {
+    String command = http.getString();  // Nhận lệnh ('F', 'B', 'L', 'R', 'A', 'M')
+    uartSerial.print(command.charAt(0));  // Gửi lệnh đến Arduino
+    Serial.println("Sent command to Arduino: " + command);
+  } else {
+    Serial.println("Error getting command");
+  }
 
-  Serial.printf("Raw Signal (0-4095): %d, Voltage: %.2fV, Dust Density: %.2f mg/m³\n", 
-                voMeasured, calcVoltage, dustDensity);
+  http.end();
 }
