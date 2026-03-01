@@ -1,0 +1,109 @@
+<div class="header">
+  <h1>Điều Khiển Robot</h1>
+  <div class="status-bar">
+    <span class="status-indicator"></span>
+    <span id="status-text">Đang kết nối...</span>
+  </div>
+</div>
+
+<!-- Stats Dashboard -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon">🕒</div>
+    <div class="stat-label">Thời gian thực</div>
+    <div class="stat-value">
+      <span id="real-time">00:00:00</span>
+    </div>
+    <div class="stat-label" style="margin-top: 5px; font-size: 0.8rem;">
+      <span id="real-date">Đang tải...</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">⏱️</div>
+    <div class="stat-label">Thời gian hoạt động</div>
+    <div class="stat-value">
+      <span id="runtime">00:00:00</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">🌡️</div>
+    <div class="stat-label">Nồng độ bụi</div>
+    <div class="stat-value">
+      <span id="dust-level">25</span>
+      <span class="stat-unit">μg/m³</span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Control Panel -->
+  <div class="panel">
+    <h2>⚙️ Điều Khiển</h2>
+    <div class="controls">
+      <div class="control-row">
+        <button class="control-btn forward" 
+                onmousedown="sendCommand('go')" 
+                onmouseup="sendCommand('stop')"
+                ontouchstart="sendCommand('go')" 
+                ontouchend="sendCommand('stop')">
+          <span class="icon-forward"></span> TIẾN
+        </button>
+      </div>
+      <div class="control-row">
+        <button class="control-btn left" 
+                onmousedown="sendCommand('left')" 
+                onmouseup="sendCommand('stop')"
+                ontouchstart="sendCommand('left')" 
+                ontouchend="sendCommand('stop')">
+          <span class="icon-left"></span> TRÁI
+        </button>
+        <button class="control-btn right" 
+                onmousedown="sendCommand('right')" 
+                onmouseup="sendCommand('stop')"
+                ontouchstart="sendCommand('right')" 
+                ontouchend="sendCommand('stop')">
+          <span class="icon-right"></span> PHẢI
+        </button>
+      </div>
+      <div class="control-row">
+        <button class="control-btn backward" 
+                onmousedown="sendCommand('back')" 
+                onmouseup="sendCommand('stop')"
+                ontouchstart="sendCommand('back')" 
+                ontouchend="sendCommand('stop')">
+          <span class="icon-backward"></span> LÙI
+        </button>
+      </div>
+      <button id="modeBtn" class="control-btn mode-btn" onclick="toggleMode()">
+        <span class="icon-auto"></span> CHẾ ĐỘ TỰ ĐỘNG
+      </button>
+    </div>
+
+    <div class="instructions">
+      <h3>📖 Hướng dẫn sử dụng</h3>
+      <ul>
+        <li>Nhấn giữ nút điều hướng để di chuyển</li>
+        <li>Thả nút để dừng lại</li>
+        <li>Chế độ tự động: Robot tự tránh vật cản</li>
+        <li>Chế độ thủ công: Điều khiển bằng tay</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Camera Panel -->
+  <div class="panel">
+    <h2>📹 Camera Trực Tiếp</h2>
+    <div class="camera-container">
+      <div class="camera-frame">
+        <div class="camera-overlay">
+          <span class="live-indicator"></span>
+          <span>LIVE</span>
+        </div>
+        <img id="cameraStream" src="/camera_stream" alt="Camera Stream">
+      </div>
+      <div style="text-align: center; font-size: 0.9rem; color: #94a3b8;">
+        <p id="mode-status">🎮 Chế độ: <strong>Thủ công</strong></p>
+      </div>
+    </div>
+  </div>
+</div>

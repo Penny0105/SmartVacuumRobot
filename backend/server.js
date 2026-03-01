@@ -1,15 +1,17 @@
 const express = require('express');
 const app = express();
 const multer = require('multer');
-const upload = multer();
 const fs = require('fs');
 const path = require('path');
-const fetch = require('node-fetch');
+
+// Cấu hình multer để xử lý upload
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 // Middleware để xử lý body request
 app.use(express.json());
 
-// Serve static files từ frontend folder
+// Serve static files từ frontend folder (bao gồm pages/, css/, js/)
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Biến lưu lệnh hiện tại để ESP32 polling
