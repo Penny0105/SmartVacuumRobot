@@ -66,8 +66,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // Load home page initially
   loadPage('home');
   
-  // Auto refresh camera every 500ms
-  setInterval(refreshCamera, 500);
+  // Kiểm tra kết nối ESP32 camera mỗi 2s
+  setInterval(refreshCamera, 2000);
 
   // Update dust level every 5 seconds
   setInterval(updateDustLevel, 5000);

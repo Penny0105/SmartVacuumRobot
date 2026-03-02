@@ -16,17 +16,29 @@ function initHomePage() {
   document.querySelectorAll('.control-btn').forEach(btn => {
     btn.addEventListener('contextmenu', e => e.preventDefault());
   });
+
+  // Cập nhật UI nút theo mode hiện tại (khi quay lại trang home)
+  updateDirectionButtons();
 }
 
 // Send command to server
 function sendCommand(cmd) {
+  // Chặn lệnh điều hướng khi đang ở chế độ tự động
+  if (currentMode === 'auto' && ['go', 'back', 'left', 'right'].includes(cmd)) {
+    return;
+  }
+
   fetch('/send_command?cmd=' + cmd)
     .then(response => {
       if (response.ok) {
         isConnected = true;
         updateStatus();
-        if (cmd === 'go' && !runtimeInterval) {
+
+        // Quản lý runtime timer
+        if (['go', 'back', 'left', 'right'].includes(cmd)) {
           startRuntime();
+        } else if (cmd === 'stop') {
+          stopRuntime();
         }
       }
     })
@@ -45,16 +57,45 @@ function toggleMode() {
   if (currentMode === 'manual') {
     currentMode = 'auto';
     sendCommand('auto');
-    modeBtn.innerHTML = '<span class="icon-manual"></span> CHẾ ĐỘ THỦ CÔNG';
-    modeBtn.classList.add('auto-mode');
-    modeStatus.innerHTML = '⚡ Chế độ: <strong>Tự động</strong>';
+    startRuntime(); // Auto mode bắt đầu chạy
+    if (modeBtn) {
+      modeBtn.innerHTML = '<span class="icon-manual"></span> CHẾ ĐỘ THỦ CÔNG';
+      modeBtn.classList.add('auto-mode');
+    }
+    if (modeStatus) {
+      modeStatus.innerHTML = '⚡ Chế độ: <strong>Tự động</strong>';
+    }
   } else {
     currentMode = 'manual';
     sendCommand('manual');
-    modeBtn.innerHTML = '<span class="icon-auto"></span> CHẾ ĐỘ TỰ ĐỘNG';
-    modeBtn.classList.remove('auto-mode');
-    modeStatus.innerHTML = '🎮 Chế độ: <strong>Thủ công</strong>';
+    stopRuntime();
+    if (modeBtn) {
+      modeBtn.innerHTML = '<span class="icon-auto"></span> CHẾ ĐỘ TỰ ĐỘNG';
+      modeBtn.classList.remove('auto-mode');
+    }
+    if (modeStatus) {
+      modeStatus.innerHTML = '🎮 Chế độ: <strong>Thủ công</strong>';
+    }
   }
+
+  // Cập nhật trạng thái nút điều hướng
+  updateDirectionButtons();
+}
+
+// Bật/tắt nút điều hướng theo chế độ
+function updateDirectionButtons() {
+  const dirBtns = document.querySelectorAll('.control-btn.forward, .control-btn.backward, .control-btn.left, .control-btn.right');
+  dirBtns.forEach(btn => {
+    if (currentMode === 'auto') {
+      btn.disabled = true;
+      btn.style.opacity = '0.4';
+      btn.style.cursor = 'not-allowed';
+    } else {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+    }
+  });
 }
 
 // Update connection status
@@ -76,6 +117,13 @@ function startRuntime() {
     runtimeSeconds++;
     updateRuntimeDisplay();
   }, 1000);
+}
+
+function stopRuntime() {
+  if (runtimeInterval) {
+    clearInterval(runtimeInterval);
+    runtimeInterval = null;
+  }
 }
 
 function updateRuntimeDisplay() {
@@ -125,10 +173,46 @@ function updateDustLevel() {
   }
 }
 
-// Refresh camera stream
+// Refresh camera stream - kết nối tới MJPEG stream từ ESP32
 function refreshCamera() {
+  if (currentPage !== 'home') return;
+
   const img = document.getElementById('cameraStream');
-  if (img && currentPage === 'home') {
-    img.src = '/camera_stream?' + new Date().getTime();
-  }
+  const overlay = document.getElementById('camera-waiting-overlay');
+  if (!img) return;
+
+  // Nếu đang stream rồi thì không cần làm gì
+  if (img.dataset.streaming === 'true') return;
+
+  // Lấy URL stream MJPEG từ server
+  fetch('/esp32_stream_url')
+    .then(res => res.json())
+    .then(data => {
+      if (data.url && data.connected) {
+        // Kết nối tới MJPEG stream của ESP32
+        img.src = data.url;
+        img.dataset.streaming = 'true';
+
+        img.onload = () => {
+          if (overlay) overlay.style.display = 'none';
+          isConnected = true;
+          updateStatus();
+        };
+
+        img.onerror = () => {
+          // Stream bị ngắt hoặc ESP32 mất kết nối
+          img.dataset.streaming = 'false';
+          img.src = '';
+          if (overlay) overlay.style.display = 'flex';
+          isConnected = false;
+          updateStatus();
+        };
+      } else {
+        // ESP32 chưa kết nối
+        if (overlay) overlay.style.display = 'flex';
+      }
+    })
+    .catch(() => {
+      if (overlay) overlay.style.display = 'flex';
+    });
 }

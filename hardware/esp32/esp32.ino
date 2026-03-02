@@ -2,12 +2,13 @@
 #include "esp_camera.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include "esp_http_server.h"
 #define CAMERA_MODEL_AI_THINKER
 
 const char* ssid = "Penny";         // Tên WiFi
 const char* password = "123456789";    // Mật khẩu WiFi
 
-const char* serverUrl = "http://10.100.217.248:5000";  // IP laptop chạy Node.js (thay bằng IP của bạn)
+const char* serverUrl = "http://10.238.109.248:5000";  // IP laptop chạy Node.js (thay bằng IP của bạn)
 
 #if defined(CAMERA_MODEL_AI_THINKER)
 #define PWDN_GPIO_NUM     32
@@ -36,6 +37,77 @@ const char* serverUrl = "http://10.100.217.248:5000";  // IP laptop chạy Node.
 
 HardwareSerial uartSerial(2);  // Sử dụng UART2 để giao tiếp với Arduino
 
+// ===== MJPEG Stream Server trên port 81 (tham khảo từ esp_camera_webserver) =====
+#define PART_BOUNDARY "123456789000000000000987654321"
+static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
+static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
+static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
+httpd_handle_t stream_httpd = NULL;
+
+// Handler stream MJPEG - gửi frame liên tục cho browser
+static esp_err_t stream_handler(httpd_req_t *req) {
+  camera_fb_t *fb = NULL;
+  esp_err_t res = ESP_OK;
+  char part_buf[64];
+
+  res = httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
+  if (res != ESP_OK) return res;
+
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+
+  while (true) {
+    fb = esp_camera_fb_get();
+    if (!fb) {
+      Serial.println("Camera capture failed in stream");
+      res = ESP_FAIL;
+      break;
+    }
+
+    size_t hlen = snprintf(part_buf, 64, _STREAM_PART, fb->len);
+    res = httpd_resp_send_chunk(req, part_buf, hlen);
+    if (res == ESP_OK)
+      res = httpd_resp_send_chunk(req, (const char *)fb->buf, fb->len);
+    if (res == ESP_OK)
+      res = httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
+
+    esp_camera_fb_return(fb);
+    if (res != ESP_OK) break;
+  }
+
+  return res;
+}
+
+// Khởi động stream server trên port 81
+void startStreamServer() {
+  httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+  config.server_port = 81;
+  config.ctrl_port = 32769;
+
+  httpd_uri_t stream_uri = {
+    .uri = "/stream",
+    .method = HTTP_GET,
+    .handler = stream_handler,
+    .user_ctx = NULL
+  };
+
+  if (httpd_start(&stream_httpd, &config) == ESP_OK) {
+    httpd_register_uri_handler(stream_httpd, &stream_uri);
+    Serial.println("MJPEG stream server started on port 81");
+  }
+}
+
+// Đăng ký IP của ESP32 với Node.js server
+void registerWithServer() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  HTTPClient http;
+  String url = String(serverUrl) + "/register_esp32?ip=" + WiFi.localIP().toString();
+  http.begin(url);
+  int code = http.GET();
+  if (code > 0) Serial.println("Registered with server. Stream: http://" + WiFi.localIP().toString() + ":81/stream");
+  else Serial.println("Failed to register with server");
+  http.end();
+}
+
 void setup() {
   Serial.begin(115200);  // Khởi tạo Serial để debug
   Serial.setDebugOutput(true);  // Bật debug output
@@ -43,13 +115,25 @@ void setup() {
 
   // Kết nối WiFi (chế độ Station - kết nối vào mạng có sẵn)
   Serial.println("Connecting to WiFi...");
+  WiFi.mode(WIFI_STA);           // Bắt buộc set STA mode trước khi begin
+  WiFi.setSleep(false);          // Tắt WiFi sleep để ổn định stream
   WiFi.begin(ssid, password);
+
+  // Chờ kết nối tối đa 20 giây, nếu thất bại thì restart ESP32
+  int wifiTimeout = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
+    wifiTimeout++;
+    if (wifiTimeout > 40) {  // 40 x 500ms = 20 giây
+      Serial.println("\nWiFi connection failed! Restarting...");
+      ESP.restart();
+    }
   } 
   Serial.println("");
   Serial.println("WiFi connected");  // Thông báo kết nối thành công
+  Serial.print("ESP32 IP: ");
+  Serial.println(WiFi.localIP());
 
   // Khởi tạo camera
   camera_config_t config;
@@ -92,36 +176,23 @@ void setup() {
   uartSerial.begin(115200, SERIAL_8N1, RXD, TXD);  // Bắt đầu giao tiếp UART với Arduino
   uartSerial.print('M');  // Gửi lệnh 'M' (manual mode)
   Serial.println("UART initialized, sent 'M' to Arduino");
+
+  // Khởi động MJPEG stream server và đăng ký IP với Node.js
+  startStreamServer();
+  registerWithServer();
 }
 
 void loop() {
-  sendCameraFrame();  // Gửi frame camera đến server Node.js
   checkCommands();  // Kiểm tra lệnh từ server
 
-  delay(100);  // Delay để không quá tải CPU
-}
-
-// Hàm gửi frame camera đến server Node.js
-void sendCameraFrame() {
-  camera_fb_t * fb = esp_camera_fb_get();
-  if (!fb) {
-    Serial.println("Camera capture failed");
-    return;
+  // Đăng ký lại với server mỗi 30 giây (phòng khi server restart)
+  static unsigned long lastRegister = 0;
+  if (millis() - lastRegister > 30000) {
+    registerWithServer();
+    lastRegister = millis();
   }
 
-  HTTPClient http;
-  http.begin(String(serverUrl) + "/stream");  // Endpoint nhận stream trên server
-  http.addHeader("Content-Type", "image/jpeg");
-  int httpResponseCode = http.POST(fb->buf, fb->len);  // Gửi frame JPEG
-
-  if (httpResponseCode > 0) {
-    Serial.println("Frame sent successfully");
-  } else {
-    Serial.println("Error sending frame");
-  }
-
-  http.end();
-  esp_camera_fb_return(fb);
+  delay(200);
 }
 
 // Hàm kiểm tra lệnh từ server Node.js

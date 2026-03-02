@@ -94,12 +94,25 @@
   <div class="panel">
     <h2>📹 Camera Trực Tiếp</h2>
     <div class="camera-container">
-      <div class="camera-frame">
+      <div class="camera-frame" style="position: relative;">
         <div class="camera-overlay">
           <span class="live-indicator"></span>
           <span>LIVE</span>
         </div>
-        <img id="cameraStream" src="/camera_stream" alt="Camera Stream">
+        <!-- Overlay khi chưa có kết nối camera -->
+        <div id="camera-waiting-overlay" style="
+          position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+          color: #94a3b8; z-index: 5; border-radius: 8px;">
+          <div style="font-size: 3rem; margin-bottom: 12px;">📷</div>
+          <div style="font-size: 1rem; font-weight: 600; color: #e2e8f0;">Đang chờ camera...</div>
+          <div style="font-size: 0.8rem; margin-top: 6px;">Kết nối ESP32-CAM để xem stream</div>
+          <div style="margin-top: 12px;">
+            <div class="spinner-border spinner-border-sm text-info" role="status"></div>
+          </div>
+        </div>
+        <img id="cameraStream" src="" alt="Camera Stream" style="width: 100%; display: block;">
       </div>
       <div style="text-align: center; font-size: 0.9rem; color: #94a3b8;">
         <p id="mode-status">🎮 Chế độ: <strong>Thủ công</strong></p>
