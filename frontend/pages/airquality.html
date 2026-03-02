@@ -1,27 +1,43 @@
-<div class="container-fluid p-4">
-  <div class="row">
-    <div class="col-12">
-      <!-- Header Card -->
-      <div class="card shadow-lg mb-4" style="border: none; border-radius: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        <div class="card-body text-white p-4">
+<div class="container-fluid px-0">
+  <!-- Header Card -->
+  <div class="card shadow-lg mb-3 mx-3 mt-3" style="border: none; border-radius: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+    <div class="card-body text-white p-4">
+      <div class="row align-items-center">
+        <div class="col-lg-5">
           <h2 class="mb-2"><i class="bi bi-globe-asia-australia"></i> Bản Đồ Nồng Độ Bụi Việt Nam</h2>
-          <p class="mb-3 opacity-75">
-            <i class="bi bi-info-circle"></i> Dữ liệu AQI và PM2.5 realtime từ OpenWeatherMap - Cập nhật liên tục
+          <p class="mb-0 opacity-75">
+            <i class="bi bi-info-circle"></i> Dữ liệu AQI và PM2.5 realtime từ OpenWeatherMap — Công thức AQI chuẩn EPA
           </p>
-          <div class="d-flex flex-wrap gap-2">
-            <button id="refreshBtn" class="btn btn-light btn-sm">
+        </div>
+        <div class="col-lg-7">
+          <div class="d-flex flex-wrap gap-2 justify-content-lg-end mt-3 mt-lg-0 align-items-center">
+            <!-- Search Box -->
+            <div class="position-relative" style="min-width: 230px;">
+              <input type="text" id="searchProvince" class="form-control form-control-sm" 
+                placeholder="🔍 Tìm tỉnh/thành phố..." 
+                autocomplete="off"
+                style="border-radius: 20px; padding-left: 16px; padding-right: 36px;">
+              <button onclick="clearSearch()" id="clearSearchBtn" class="btn btn-sm position-absolute end-0 top-0 text-muted" 
+                style="display: none; border: none; background: none; padding: 4px 10px;">
+                <i class="bi bi-x-circle"></i>
+              </button>
+              <div id="searchResults" class="position-absolute w-100 bg-white rounded-3 shadow-lg mt-1" 
+                style="display: none; z-index: 1000; max-height: 250px; overflow-y: auto;">
+              </div>
+            </div>
+            <button id="refreshBtn" class="btn btn-light btn-sm" style="border-radius: 20px;">
               <i class="bi bi-arrow-clockwise"></i> Làm mới
             </button>
-            <button onclick="zoomToCity(21.0285, 105.8542, 'Hà Nội')" class="btn btn-outline-light btn-sm">
-              <i class="bi bi-geo-alt-fill"></i> Hà Nội
+            <button onclick="zoomToCity(21.0285, 105.8542, 'Hà Nội')" class="btn btn-outline-light btn-sm" style="border-radius: 20px;">
+              Hà Nội
             </button>
-            <button onclick="zoomToCity(10.8231, 106.6297, 'TP.HCM')" class="btn btn-outline-light btn-sm">
-              <i class="bi bi-geo-alt-fill"></i> TP.HCM
+            <button onclick="zoomToCity(10.8231, 106.6297, 'TP.HCM')" class="btn btn-outline-light btn-sm" style="border-radius: 20px;">
+              TP.HCM
             </button>
-            <button onclick="zoomToCity(16.0544, 108.2022, 'Đà Nẵng')" class="btn btn-outline-light btn-sm">
-              <i class="bi bi-geo-alt-fill"></i> Đà Nẵng
+            <button onclick="zoomToCity(16.0544, 108.2022, 'Đà Nẵng')" class="btn btn-outline-light btn-sm" style="border-radius: 20px;">
+              Đà Nẵng
             </button>
-            <button onclick="resetMapView()" class="btn btn-outline-light btn-sm">
+            <button onclick="resetMapView()" class="btn btn-outline-light btn-sm" style="border-radius: 20px;">
               <i class="bi bi-compass"></i> Toàn quốc
             </button>
           </div>
@@ -30,55 +46,48 @@
     </div>
   </div>
 
-  <div class="row">
-    <div class="col-lg-9 col-md-8">
-      <!-- Map Card -->
-      <div class="card shadow-sm mb-4" style="border: none; border-radius: 15px;">
-        <div class="card-body p-0">
-          <div id="leaflet-map" style="height: 600px; border-radius: 15px;"></div>
+  <!-- Map Full Width with Overlay Legend -->
+  <div class="position-relative mx-3">
+    <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+      <div id="leaflet-map" style="height: 75vh; min-height: 500px;"></div>
+    </div>
+
+    <!-- Legend Overlay (top-right) -->
+    <div class="position-absolute" style="top: 12px; right: 12px; z-index: 999;">
+      <div class="card shadow" style="border: none; border-radius: 12px; backdrop-filter: blur(10px); background: rgba(255,255,255,0.92); width: 170px;">
+        <div class="card-body p-2">
+          <h6 class="mb-2 text-center" style="font-size: 0.8rem;"><i class="bi bi-palette"></i> Thang đo AQI</h6>
+          <div class="d-flex align-items-center mb-1">
+            <div style="width: 20px; height: 14px; background: #10b981; border-radius: 3px;" class="me-2 flex-shrink-0"></div>
+            <small style="font-size: 0.72rem;"><strong>0-50:</strong> Tốt</small>
+          </div>
+          <div class="d-flex align-items-center mb-1">
+            <div style="width: 20px; height: 14px; background: #fbbf24; border-radius: 3px;" class="me-2 flex-shrink-0"></div>
+            <small style="font-size: 0.72rem;"><strong>51-100:</strong> Trung bình</small>
+          </div>
+          <div class="d-flex align-items-center mb-1">
+            <div style="width: 20px; height: 14px; background: #f97316; border-radius: 3px;" class="me-2 flex-shrink-0"></div>
+            <small style="font-size: 0.72rem;"><strong>101-150:</strong> Kém</small>
+          </div>
+          <div class="d-flex align-items-center mb-1">
+            <div style="width: 20px; height: 14px; background: #ef4444; border-radius: 3px;" class="me-2 flex-shrink-0"></div>
+            <small style="font-size: 0.72rem;"><strong>151-200:</strong> Xấu</small>
+          </div>
+          <div class="d-flex align-items-center">
+            <div style="width: 20px; height: 14px; background: #9333ea; border-radius: 3px;" class="me-2 flex-shrink-0"></div>
+            <small style="font-size: 0.72rem;"><strong>>200:</strong> Nguy hại</small>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="col-lg-3 col-md-4">
-      <!-- Legend Card -->
-      <div class="card shadow-sm mb-3" style="border: none; border-radius: 15px;">
-        <div class="card-header bg-primary text-white" style="border-radius: 15px 15px 0 0;">
-          <h6 class="mb-0"><i class="bi bi-palette"></i> Thang đo AQI</h6>
-        </div>
-        <div class="card-body">
-          <div class="d-flex align-items-center mb-2">
-            <div style="width: 30px; height: 30px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 5px;" class="me-2"></div>
-            <small><strong>0-50:</strong> Tốt</small>
-          </div>
-          <div class="d-flex align-items-center mb-2">
-            <div style="width: 30px; height: 30px; background: linear-gradient(135deg, #fbbf24, #f59e0b); border-radius: 5px;" class="me-2"></div>
-            <small><strong>51-100:</strong> Trung bình</small>
-          </div>
-          <div class="d-flex align-items-center mb-2">
-            <div style="width: 30px; height: 30px; background: linear-gradient(135deg, #f97316, #ea580c); border-radius: 5px;" class="me-2"></div>
-            <small><strong>101-150:</strong> Kém</small>
-          </div>
-          <div class="d-flex align-items-center mb-2">
-            <div style="width: 30px; height: 30px; background: linear-gradient(135deg, #ef4444, #dc2626); border-radius: 5px;" class="me-2"></div>
-            <small><strong>151-200:</strong> Xấu</small>
-          </div>
-          <div class="d-flex align-items-center">
-            <div style="width: 30px; height: 30px; background: linear-gradient(135deg, #9333ea, #7e22ce); border-radius: 5px;" class="me-2"></div>
-            <small><strong>>200:</strong> Nguy hại</small>
-          </div>
-        </div>
-      </div>
-
-      <!-- Info Card -->
-      <div class="card shadow-sm" style="border: none; border-radius: 15px;">
-        <div class="card-header bg-info text-white" style="border-radius: 15px 15px 0 0;">
-          <h6 class="mb-0"><i class="bi bi-info-circle"></i> Thông tin</h6>
-        </div>
-        <div class="card-body">
+    <!-- Info Overlay (bottom-left) -->
+    <div class="position-absolute" style="bottom: 12px; left: 12px; z-index: 999;">
+      <div class="card shadow" style="border: none; border-radius: 12px; backdrop-filter: blur(10px); background: rgba(255,255,255,0.92); min-width: 200px;">
+        <div class="card-body p-2">
           <div id="city-info-display">
             <p class="text-muted small mb-0">
-              <i class="bi bi-cursor"></i> Click vào marker để xem chi tiết từng thành phố
+              <i class="bi bi-cursor"></i> Click tỉnh hoặc marker để xem chi tiết
             </p>
           </div>
         </div>
@@ -86,18 +95,30 @@
     </div>
   </div>
 
-  <!-- Guide Card -->
-  <div class="row">
-    <div class="col-12">
-      <div class="card shadow-sm" style="border: none; border-radius: 15px; border-left: 5px solid #667eea;">
-        <div class="card-body">
-          <h6 class="mb-3"><i class="bi bi-lightbulb"></i> Hướng dẫn sử dụng</h6>
+  <!-- Bottom Info Section -->
+  <div class="row mx-0 mt-3 px-3 pb-3">
+    <div class="col-lg-8 mb-3 mb-lg-0">
+      <div class="card shadow-sm h-100" style="border: none; border-radius: 15px; border-left: 5px solid #667eea;">
+        <div class="card-body py-3">
+          <h6 class="mb-2"><i class="bi bi-lightbulb text-warning"></i> Hướng dẫn sử dụng</h6>
           <ul class="mb-0 small">
-            <li><strong>Vùng màu</strong> trên bản đồ thể hiện mức độ ô nhiễm không khí theo tỉnh thành</li>
-            <li><strong>Kích thước vùng</strong> tỷ lệ với nồng độ PM2.5 (càng rộng = càng ô nhiễm)</li>
-            <li><strong>Di chuột</strong> qua vùng màu để làm nổi bật</li>
-            <li><strong>Click marker</strong> <i class="bi bi-geo-alt-fill text-danger"></i> để xem thông tin chi tiết thời tiết & AQI</li>
-            <li><strong>Zoom vào/ra</strong> bằng nút +/- hoặc cuộn chuột để xem từng vùng</li>
+            <li><strong>Vùng màu</strong> trên bản đồ thể hiện mức độ ô nhiễm không khí tại từng tỉnh thành (ranh giới hành chính thực tế)</li>
+            <li><strong>Di chuột</strong> qua vùng tỉnh để làm nổi bật, <strong>click vùng tỉnh</strong> để xem chỉ số AQI tổng quan</li>
+            <li><strong>Click marker</strong> <i class="bi bi-geo-alt-fill text-danger"></i> để xem chi tiết thời tiết, nhiệt độ, độ ẩm, tốc độ gió và nồng độ PM2.5/PM10</li>
+            <li><strong>Tìm kiếm</strong> tỉnh/thành phố bằng ô tìm kiếm phía trên hoặc dùng các nút zoom nhanh</li>
+            <li><strong>Zoom vào/ra</strong> bằng nút +/- hoặc cuộn chuột để xem từng khu vực chi tiết</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100" style="border: none; border-radius: 15px; border-left: 5px solid #f59e0b;">
+        <div class="card-body py-3">
+          <h6 class="mb-2"><i class="bi bi-exclamation-triangle text-warning"></i> Lưu ý quan trọng</h6>
+          <ul class="mb-0 small text-muted">
+            <li>Dữ liệu AQI được tính theo <strong>công thức chuẩn EPA</strong> dựa trên nồng độ PM2.5 từ OpenWeatherMap</li>
+            <li>Chất lượng không khí tại các <strong>tỉnh vùng sâu, vùng xa</strong> (miền núi, hải đảo) có thể <strong>không hoàn toàn chính xác</strong> do thiếu trạm quan trắc thực tế</li>
+            <li>Nên đối chiếu thêm <a href="https://www.iqair.com/vi/vietnam" target="_blank" class="text-primary">IQAir</a>, <a href="https://aqicn.org/map/vietnam/vi/" target="_blank" class="text-primary">AQICN</a> để có kết quả chính xác hơn</li>
           </ul>
         </div>
       </div>
