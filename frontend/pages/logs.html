@@ -1,5 +1,79 @@
-<div class="placeholder-content">
-  <h2>📋 Nhật Ký Hoạt Động</h2>
-  <p>Tính năng đang được phát triển...<br>
-  Sẽ hiển thị lịch sử hoạt động, thời gian làm việc, và các sự kiện của robot.</p>
+<div class="header">
+  <h1>📋 Nhật Ký Hoạt Động</h1>
+  <div class="status-bar">
+    <span class="status-indicator"></span>
+    <span id="logs-status">Đang tải...</span>
+  </div>
+</div>
+
+<!-- Thống kê -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon">📊</div>
+    <div class="stat-label">Tổng sự kiện</div>
+    <div class="stat-value"><span id="stat-total">0</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">📅</div>
+    <div class="stat-label">Hôm nay</div>
+    <div class="stat-value"><span id="stat-today">0</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">🎮</div>
+    <div class="stat-label">Lệnh phổ biến</div>
+    <div class="stat-value" style="font-size: 1.2rem;"><span id="stat-top-cmd">--</span></div>
+  </div>
+</div>
+
+<!-- Bộ lọc + Tìm kiếm -->
+<div class="logs-container">
+  <div class="logs-toolbar">
+    <div class="logs-filters">
+      <select id="filter-type" class="logs-select" onchange="filterLogs()">
+        <option value="">🔍 Tất cả loại</option>
+        <option value="command">🎮 Lệnh điều khiển</option>
+        <option value="mode">⚙️ Chuyển chế độ</option>
+        <option value="connection">📡 Kết nối</option>
+        <option value="system">💻 Hệ thống</option>
+      </select>
+      <input type="text" id="filter-search" class="logs-input" placeholder="🔎 Tìm kiếm..." oninput="debounceSearch()">
+    </div>
+    <div class="logs-actions">
+      <button class="logs-btn refresh-btn" onclick="loadLogs(1)" title="Làm mới">
+        🔄 Làm mới
+      </button>
+      <button class="logs-btn danger-btn" onclick="confirmClearLogs()" title="Xóa tất cả">
+        🗑️ Xóa tất cả
+      </button>
+    </div>
+  </div>
+
+  <!-- Bảng logs -->
+  <div class="logs-table-wrapper">
+    <table class="logs-table">
+      <thead>
+        <tr>
+          <th style="width: 40px;">#</th>
+          <th style="width: 160px;">⏰ Thời gian</th>
+          <th style="width: 110px;">📌 Loại</th>
+          <th>📝 Hoạt động</th>
+          <th>📄 Chi tiết</th>
+          <th style="width: 80px;">📡 Nguồn</th>
+          <th style="width: 50px;">🗑️</th>
+        </tr>
+      </thead>
+      <tbody id="logs-tbody">
+        <tr>
+          <td colspan="7" class="logs-empty">Đang tải nhật ký...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Phân trang -->
+  <div class="logs-pagination">
+    <button class="logs-btn page-btn" id="btn-prev" onclick="changePage(-1)" disabled>◄ Trước</button>
+    <span id="page-info" class="page-info">Trang 1/1</span>
+    <button class="logs-btn page-btn" id="btn-next" onclick="changePage(1)" disabled>Sau ►</button>
+  </div>
 </div>

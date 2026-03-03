@@ -67,76 +67,54 @@ void loop() {
   // Chế độ tự động
   if (autoMode) {
     static unsigned long lastActionTime = 0;
-    static int autoState = 0;
+    static int autoState = 0; // 0=quét, 1=dừng, 2=lùi, 3=chọn hướng, 4=rẽ
     unsigned long currentTime = millis();
-    int irState = digitalRead(ir_pin); // Đọc hồng ngoại
-    if (irState == HIGH) { // Phát hiện hố
-      if (autoState == 0) {
+
+    if (autoState == 0) {
+      // State 0: Quét cảm biến - chỉ kiểm tra khi không đang tránh vật cản
+      int irState = digitalRead(ir_pin);
+      if (irState == HIGH) {
+        // Phát hiện hố → bắt đầu chuỗi tránh
         moveStop();
         autoState = 1;
         lastActionTime = currentTime;
-      } else if (autoState == 1 && currentTime - lastActionTime >= 300) {
-        moveBackward();
-        autoState = 2;
-        lastActionTime = currentTime;
-      } else if (autoState == 2 && currentTime - lastActionTime >= 400) {
-        moveStop();
-        autoState = 3;
-        lastActionTime = currentTime;
-      } else if (autoState == 3 && currentTime - lastActionTime >= 300) {
-        int distanceRight = readRight();
-        int distanceLeft = readLeft();
-        if (distanceRight >= distanceLeft) {
-          turnRight();
-          autoState = 4;
-          lastActionTime = currentTime;
-        } else {
-          turnLeft();
-          autoState = 5;
-          lastActionTime = currentTime;
-        }
-      } else if ((autoState == 4 || autoState == 5) && currentTime - lastActionTime >= 300) {
-        moveStop();
-        autoState = 0;
+      } else {
         distance = readFront();
-      }
-    } else {
-      // Tránh vật cản bằng siêu âm
-      distance = readFront();
-      if (distance <= 20) {
-        if (autoState == 0) {
+        if (distance <= 20) {
+          // Phát hiện vật cản → bắt đầu chuỗi tránh
           moveStop();
           autoState = 1;
           lastActionTime = currentTime;
-        } else if (autoState == 1 && currentTime - lastActionTime >= 300) {
-          moveBackward();
-          autoState = 2;
-          lastActionTime = currentTime;
-        } else if (autoState == 2 && currentTime - lastActionTime >= 400) {
-          moveStop();
-          autoState = 3;
-          lastActionTime = currentTime;
-        } else if (autoState == 3 && currentTime - lastActionTime >= 300) {
-          int distanceRight = readRight();
-          int distanceLeft = readLeft();
-          if (distanceRight >= distanceLeft) {
-            turnRight();
-            autoState = 4;
-            lastActionTime = currentTime;
-          } else {
-            turnLeft();
-            autoState = 5;
-            lastActionTime = currentTime;
-          }
-        } else if ((autoState == 4 || autoState == 5) && currentTime - lastActionTime >= 300) {
-          moveStop();
-          autoState = 0;
-          distance = readFront();
+        } else {
+          // An toàn → đi thẳng
+          moveForward();
         }
-      } else {
-        moveForward();
-        autoState = 0;
       }
+    } else if (autoState == 1 && currentTime - lastActionTime >= 300) {
+      // State 1→2: Đã dừng xong → lùi lại
+      moveBackward();
+      autoState = 2;
+      lastActionTime = currentTime;
+    } else if (autoState == 2 && currentTime - lastActionTime >= 400) {
+      // State 2→3: Đã lùi xong → dừng, chuẩn bị chọn hướng
+      moveStop();
+      autoState = 3;
+      lastActionTime = currentTime;
+    } else if (autoState == 3 && currentTime - lastActionTime >= 300) {
+      // State 3→4: Đo khoảng cách 2 bên và rẽ
+      int distanceRight = readRight();
+      int distanceLeft = readLeft();
+      if (distanceRight >= distanceLeft) {
+        turnRight();
+      } else {
+        turnLeft();
+      }
+      autoState = 4;
+      lastActionTime = currentTime;
+    } else if (autoState == 4 && currentTime - lastActionTime >= 300) {
+      // State 4→0: Đã rẽ xong → dừng và quay lại quét cảm biến
+      moveStop();
+      autoState = 0;
     }
   }
 }
@@ -144,23 +122,27 @@ void loop() {
 void handleCommand(char cmd) {
   switch (cmd) {
     case 'A':
-      autoMode = true;
-      moveStop();
-      Serial.println("Auto mode enabled");
+      if (!autoMode) {  // Chỉ xử lý nếu chưa ở chế độ tự động
+        autoMode = true;
+        moveStop();
+        Serial.println("Auto mode enabled");
+      }
       break;
     case 'M':
-      autoMode = false;
-      moveStop();
-      Serial.println("Manual mode enabled");
+      if (autoMode) {  // Chỉ xử lý nếu chưa ở chế độ thủ công
+        autoMode = false;
+        moveStop();
+        Serial.println("Manual mode enabled");
+      }
       break;
     default:
       if (!autoMode) {
         switch (cmd) {
-          case 'F': moveForward(); Serial.println("Forward command executed"); break;
-          case 'B': moveBackward(); Serial.println("Backward command executed"); break;
-          case 'L': turnLeft(); Serial.println("Left command executed"); break;
-          case 'R': turnRight(); Serial.println("Right command executed"); break;
-          case 'S': moveStop(); Serial.println("Stop command executed"); break;
+          case 'F': moveForward(); break;
+          case 'B': moveBackward(); break;
+          case 'L': turnLeft(); break;
+          case 'R': turnRight(); break;
+          case 'S': moveStop(); break;
         }
       }
       break;
