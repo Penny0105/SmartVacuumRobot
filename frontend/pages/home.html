@@ -3,21 +3,44 @@
   <div class="status-bar">
     <span class="status-indicator"></span>
     <span id="status-text">Đang kết nối...</span>
+    <span class="realtime-clock">🕒 <span id="real-time">00:00:00</span> · <span id="real-date">...</span></span>
   </div>
 </div>
 
-<!-- Stats Dashboard -->
-<div class="stats-grid">
-  <div class="stat-card">
-    <div class="stat-icon">🕒</div>
-    <div class="stat-label">Thời gian thực</div>
-    <div class="stat-value">
-      <span id="real-time">00:00:00</span>
-    </div>
-    <div class="stat-label" style="margin-top: 5px; font-size: 0.8rem;">
-      <span id="real-date">Đang tải...</span>
+<!-- Stuck Alert Overlay -->
+<div id="stuck-alert" class="stuck-overlay" style="display: none;">
+  <div class="stuck-card">
+    <div class="stuck-icon">🚨</div>
+    <h3 class="stuck-title" id="stuck-title">Robot bị mắc kẹt!</h3>
+    <p class="stuck-desc" id="stuck-desc"></p>
+    <div class="stuck-time" id="stuck-time"></div>
+    <div class="stuck-actions">
+      <button class="stuck-btn stuck-btn-primary" onclick="acknowledgeStuck()">
+        ✅ Đã biết
+      </button>
+      <button class="stuck-btn stuck-btn-secondary" onclick="switchToManual()">
+        🎮 Chuyển thủ công
+      </button>
     </div>
   </div>
+</div>
+
+<!-- Dust/AQI Alert Toast -->
+<div id="dust-alert-toast" class="dust-alert-toast" style="display: none;">
+  <div class="dust-alert-icon" id="dust-alert-icon">😷</div>
+  <div class="dust-alert-body">
+    <div class="dust-alert-title" id="dust-alert-title">Chất lượng không khí kém!</div>
+    <div class="dust-alert-text" id="dust-alert-text"></div>
+    <div>
+      <span class="dust-alert-aqi" id="dust-alert-aqi"></span>
+      <span class="dust-alert-pm25" id="dust-alert-pm25"></span>
+    </div>
+  </div>
+  <button class="dust-alert-close" onclick="dismissDustAlert()">✕</button>
+</div>
+
+<!-- Stats Dashboard -->
+<div class="stats-grid stats-grid-3">
   <div class="stat-card">
     <div class="stat-icon">⏱️</div>
     <div class="stat-label">Thời gian hoạt động</div>
@@ -26,11 +49,22 @@
     </div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon">🌡️</div>
-    <div class="stat-label">Nồng độ bụi</div>
+    <div class="stat-icon">📏</div>
+    <div class="stat-label">Quãng đường đi được</div>
     <div class="stat-value">
-      <span id="dust-level">25</span>
-      <span class="stat-unit">μg/m³</span>
+      <span id="distance-display">0.00</span>
+      <span class="stat-unit" id="distance-unit">m</span>
+    </div>
+  </div>
+  <div class="stat-card weather-stat-card">
+    <div class="weather-card-header">
+      <div class="stat-icon">🌤️</div>
+      <select id="home-province-select" class="province-select" onchange="changeHomeProvince()">
+        <option value="">-- Chọn tỉnh --</option>
+      </select>
+    </div>
+    <div id="weather-home-content">
+      <div class="weather-placeholder">Chọn tỉnh để xem thời tiết</div>
     </div>
   </div>
 </div>

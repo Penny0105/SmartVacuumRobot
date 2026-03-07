@@ -5,11 +5,15 @@ let currentMode = 'manual';
 let isConnected = false;
 let runtimeSeconds = 0;
 let runtimeInterval = null;
+let distanceUpdateInterval = null;
+
+let weatherInterval = null;
+let stuckCheckInterval = null;
+let dustAlertDismissed = false; // Đã dismiss thông báo bụi trong phiên này
 
 // Initialize home page functions
 function initHomePage() {
   // Restart timers
-  updateDustLevel();
   updateRealTimeClock();
   
   // Prevent context menu on buttons
@@ -19,6 +23,21 @@ function initHomePage() {
 
   // Cập nhật UI nút theo mode hiện tại (khi quay lại trang home)
   updateDirectionButtons();
+
+  // Cập nhật quãng đường real-time mỗi 1 giây
+  if (distanceUpdateInterval) clearInterval(distanceUpdateInterval);
+  distanceUpdateInterval = setInterval(updateActiveSession, 1000);
+  updateActiveSession(); // Cập nhật ngay
+
+  // Khởi tạo dropdown tỉnh & tải thời tiết
+  initProvinceSelector();
+  loadHomeWeather();
+  if (weatherInterval) clearInterval(weatherInterval);
+  weatherInterval = setInterval(loadHomeWeather, 5 * 60 * 1000); // Refresh 5 phút
+
+  // Kiểm tra robot bị kẹt mỗi 2 giây
+  if (stuckCheckInterval) clearInterval(stuckCheckInterval);
+  stuckCheckInterval = setInterval(checkStuckStatus, 2000);
 }
 
 // Send command to server
@@ -164,13 +183,193 @@ function updateRealTimeClock() {
   }
 }
 
-// Simulate dust level updates
-function updateDustLevel() {
-  const dustLevel = Math.floor(Math.random() * 30) + 15; // 15-45 μg/m³
-  const dustElement = document.getElementById('dust-level');
-  if (dustElement) {
-    dustElement.textContent = dustLevel;
+// Cập nhật quãng đường + thời gian từ server (active session)
+function updateActiveSession() {
+  if (currentPage !== 'home') return;
+  fetch('/api/active_session')
+    .then(res => res.json())
+    .then(data => {
+      const distEl = document.getElementById('distance-display');
+      const unitEl = document.getElementById('distance-unit');
+      if (data.active) {
+        // Cập nhật runtime từ server
+        runtimeSeconds = data.duration;
+        updateRuntimeDisplay();
+        // Cập nhật quãng đường
+        if (distEl) {
+          if (data.distance >= 1000) {
+            distEl.textContent = (data.distance / 1000).toFixed(2);
+            if (unitEl) unitEl.textContent = 'km';
+          } else {
+            distEl.textContent = data.distance.toFixed(2);
+            if (unitEl) unitEl.textContent = 'm';
+          }
+        }
+      } else {
+        if (distEl && runtimeSeconds === 0) {
+          distEl.textContent = '0.00';
+          if (unitEl) unitEl.textContent = 'm';
+        }
+      }
+    })
+    .catch(() => {});
+}
+
+// ===== WEATHER + AIR QUALITY ON HOME PAGE =====
+
+// Khởi tạo dropdown chọn tỉnh
+function initProvinceSelector() {
+  const select = document.getElementById('home-province-select');
+  if (!select || typeof vietnamCities === 'undefined') return;
+
+  // Xóa options cũ (giữ option đầu)
+  select.innerHTML = '<option value="">-- Chọn tỉnh --</option>';
+  vietnamCities.forEach((city, idx) => {
+    const opt = document.createElement('option');
+    opt.value = idx;
+    opt.textContent = city.name;
+    select.appendChild(opt);
+  });
+
+  // Restore từ localStorage
+  const saved = localStorage.getItem('home_province_idx');
+  if (saved !== null && vietnamCities[saved]) {
+    select.value = saved;
   }
+}
+
+// Khi user chọn tỉnh khác
+function changeHomeProvince() {
+  const select = document.getElementById('home-province-select');
+  if (!select) return;
+  localStorage.setItem('home_province_idx', select.value);
+  loadHomeWeather();
+}
+
+// Tải thời tiết + AQI cho tỉnh đã chọn
+async function loadHomeWeather() {
+  if (currentPage !== 'home') return;
+  const container = document.getElementById('weather-home-content');
+  if (!container) return;
+
+  const idx = localStorage.getItem('home_province_idx');
+  if (idx === null || idx === '' || typeof vietnamCities === 'undefined' || !vietnamCities[idx]) {
+    container.innerHTML = '<div class="weather-placeholder">Chọn tỉnh để xem thời tiết</div>';
+    return;
+  }
+
+  const city = vietnamCities[idx];
+  container.innerHTML = '<div class="weather-loading"><div class="spinner-border spinner-border-sm" role="status"></div> Đang tải...</div>';
+
+  try {
+    // Fetch cả 2 API song song
+    const [weatherRes, aqiRes] = await Promise.all([
+      fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${city.lat}&lon=${city.lon}&appid=${API_KEY}&units=metric&lang=vi`),
+      fetch(`https://api.openweathermap.org/data/2.5/air_pollution?lat=${city.lat}&lon=${city.lon}&appid=${API_KEY}`)
+    ]);
+
+    if (!weatherRes.ok || !aqiRes.ok) throw new Error('API error');
+
+    const weather = await weatherRes.json();
+    const aqiData = await aqiRes.json();
+
+    const pm25 = aqiData.list[0].components.pm2_5 || 0;
+    const aqi = calculateAQI(pm25);
+    const aqiLevel = getAQILevel(aqi);
+    const aqiColor = getMarkerColor(aqiLevel);
+    const aqiText = getAQIText(aqiLevel);
+
+    // Weather icon từ OpenWeatherMap
+    const iconCode = weather.weather[0].icon;
+    const iconUrl = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+
+    container.innerHTML = `
+      <div class="weather-main">
+        <img src="${iconUrl}" alt="weather" class="weather-icon-img">
+        <span class="weather-temp">${weather.main.temp.toFixed(1)}°C</span>
+      </div>
+      <div class="weather-desc">${weather.weather[0].description}</div>
+      <div class="weather-details">
+        <span>💧 ${weather.main.humidity}%</span>
+        <span>💨 ${weather.wind.speed.toFixed(1)} m/s</span>
+      </div>
+      <div class="weather-aqi">
+        <span class="aqi-home-badge" style="background:${aqiColor}">AQI ${aqi} — ${aqiText}</span>
+        <span class="weather-pm25">PM2.5: ${pm25.toFixed(1)} μg/m³</span>
+      </div>
+    `;
+
+    // Kiểm tra ngưỡng AQI và hiện thông báo
+    checkDustAlert(aqi, pm25, aqiLevel, aqiColor, aqiText, city.name);
+  } catch (err) {
+    console.error('Weather load error:', err);
+    container.innerHTML = '<div class="weather-placeholder">⚠️ Không tải được dữ liệu</div>';
+  }
+}
+
+// ===== DUST/AQI ALERT - Cảnh báo bụi vượt ngưỡng =====
+
+const DUST_ALERT_LEVELS = {
+  'unhealthy': {
+    icon: '😷',
+    title: 'Chất lượng không khí KÉM!',
+    advice: 'Nhóm nhạy cảm (trẻ em, người già, bệnh hô hấp) nên hạn chế ra ngoài. Đóng cửa sổ và bật máy lọc không khí nếu có.'
+  },
+  'bad': {
+    icon: '🤢',
+    title: 'Chất lượng không khí XẤU!',
+    advice: 'Mọi người nên hạn chế hoạt động ngoài trời. Đeo khẩu trang N95 nếu phải ra ngoài. Đóng kín cửa.'
+  },
+  'hazardous': {
+    icon: '☠️',
+    title: 'Không khí NGUY HẠI!',
+    advice: 'CẢNH BÁO KHẨN: Tránh ra ngoài hoàn toàn! Đóng kín cửa, bật máy lọc không khí. Nguy hiểm cho sức khỏe mọi người.'
+  }
+};
+
+function checkDustAlert(aqi, pm25, level, color, text, cityName) {
+  const alertInfo = DUST_ALERT_LEVELS[level];
+  
+  // AQI <= 100 (good/moderate) → ẩn thông báo, reset dismiss
+  if (!alertInfo) {
+    dustAlertDismissed = false;
+    hideDustAlert();
+    return;
+  }
+
+  // Đã dismiss rồi thì không hiện lại (cho đến khi AQI về safe rồi lên lại)
+  if (dustAlertDismissed) return;
+
+  showDustAlert(aqi, pm25, level, color, text, cityName, alertInfo);
+}
+
+function showDustAlert(aqi, pm25, level, color, text, cityName, info) {
+  const toast = document.getElementById('dust-alert-toast');
+  if (!toast) return;
+
+  document.getElementById('dust-alert-icon').textContent = info.icon;
+  document.getElementById('dust-alert-title').textContent = `${cityName}: ${info.title}`;
+  document.getElementById('dust-alert-text').textContent = info.advice;
+  
+  const aqiBadge = document.getElementById('dust-alert-aqi');
+  aqiBadge.textContent = `AQI ${aqi} — ${text}`;
+  aqiBadge.style.background = color;
+  
+  document.getElementById('dust-alert-pm25').textContent = `PM2.5: ${pm25.toFixed(1)} μg/m³`;
+
+  // Đặt class level cho border/shadow
+  toast.className = `dust-alert-toast level-${level}`;
+  toast.style.display = 'flex';
+}
+
+function hideDustAlert() {
+  const toast = document.getElementById('dust-alert-toast');
+  if (toast) toast.style.display = 'none';
+}
+
+function dismissDustAlert() {
+  dustAlertDismissed = true;
+  hideDustAlert();
 }
 
 // Refresh camera stream - kết nối tới MJPEG stream từ ESP32
@@ -215,4 +414,65 @@ function refreshCamera() {
     .catch(() => {
       if (overlay) overlay.style.display = 'flex';
     });
+}
+
+// ===== STUCK DETECTION - Phát hiện robot bị kẹt =====
+
+const STUCK_MESSAGES = {
+  1: {
+    title: '⚠️ Robot bị kẹt trong không gian chật!',
+    desc: 'Robot phát hiện vật cản liên tục từ nhiều phía. Có thể đang bị kẹt trong góc hẹp hoặc gầm bàn ghế.'
+  },
+  2: {
+    title: '🚫 Robot không phản hồi cảm biến!',
+    desc: 'Không nhận được tín hiệu từ bất kỳ cảm biến nào trong 30 giây. Bánh xe có thể bị kẹt hoặc robot đang mắc kẹt ở vị trí khuất cảm biến.'
+  }
+};
+
+// Poll server kiểm tra trạng thái kẹt
+function checkStuckStatus() {
+  if (currentPage !== 'home') return;
+  
+  fetch('/api/stuck_status')
+    .then(res => res.json())
+    .then(data => {
+      const alertEl = document.getElementById('stuck-alert');
+      if (!alertEl) return;
+      
+      if (data.isStuck && !data.acknowledged) {
+        // Hiển thị thông báo kẹt
+        const info = STUCK_MESSAGES[data.type] || STUCK_MESSAGES[1];
+        document.getElementById('stuck-title').textContent = info.title;
+        document.getElementById('stuck-desc').textContent = info.desc;
+        
+        // Hiển thị thời gian phát hiện
+        const time = new Date(data.timestamp);
+        document.getElementById('stuck-time').textContent = 
+          '🕐 Phát hiện lúc: ' + time.toLocaleTimeString('vi-VN');
+        
+        alertEl.style.display = 'flex';
+      } else {
+        alertEl.style.display = 'none';
+      }
+    })
+    .catch(() => {});
+}
+
+// Xác nhận đã biết robot bị kẹt
+function acknowledgeStuck() {
+  fetch('/api/stuck_acknowledge', { method: 'POST' })
+    .then(res => res.json())
+    .then(() => {
+      const alertEl = document.getElementById('stuck-alert');
+      if (alertEl) alertEl.style.display = 'none';
+    })
+    .catch(() => {});
+}
+
+// Chuyển sang chế độ thủ công để giải cứu robot
+function switchToManual() {
+  acknowledgeStuck();
+  if (currentMode === 'auto') {
+    toggleMode(); // Chuyển sang manual
+  }
 }

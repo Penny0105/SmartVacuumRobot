@@ -69,9 +69,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // Kiểm tra kết nối ESP32 camera mỗi 2s
   setInterval(refreshCamera, 2000);
 
-  // Update dust level every 5 seconds
-  setInterval(updateDustLevel, 5000);
-
   // Update real-time clock every second
   setInterval(updateRealTimeClock, 1000);
 

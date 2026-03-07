@@ -9,64 +9,78 @@ const db = new Database(dbPath);
 // Bật WAL mode để tăng hiệu suất
 db.pragma('journal_mode = WAL');
 
-// Tạo bảng logs nếu chưa có
+// Tạo bảng sessions - lưu phiên hoạt động (tự động / điều khiển từ xa)
 db.exec(`
-  CREATE TABLE IF NOT EXISTS logs (
+  CREATE TABLE IF NOT EXISTS sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp DATETIME DEFAULT (datetime('now', 'localtime')),
-    type TEXT NOT NULL,
-    action TEXT NOT NULL,
-    detail TEXT,
-    source TEXT DEFAULT 'system'
+    mode TEXT NOT NULL CHECK(mode IN ('auto', 'manual')),
+    start_time DATETIME DEFAULT (datetime('now', 'localtime')),
+    end_time DATETIME,
+    duration INTEGER DEFAULT 0,
+    distance REAL DEFAULT 0.0,
+    status TEXT DEFAULT 'active' CHECK(status IN ('active', 'ended'))
   )
 `);
 
-// Tạo index để tìm kiếm nhanh theo type và timestamp
 db.exec(`
-  CREATE INDEX IF NOT EXISTS idx_logs_type ON logs(type);
-  CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp DESC);
+  CREATE INDEX IF NOT EXISTS idx_sessions_mode ON sessions(mode);
+  CREATE INDEX IF NOT EXISTS idx_sessions_start ON sessions(start_time DESC);
 `);
 
 // ===== Các hàm thao tác database =====
 
-// Thêm log mới
-const insertLog = db.prepare(`
-  INSERT INTO logs (type, action, detail, source) VALUES (?, ?, ?, ?)
+// Bắt đầu phiên hoạt động mới
+const insertSession = db.prepare(`
+  INSERT INTO sessions (mode) VALUES (?)
 `);
 
-function addLog(type, action, detail = '', source = 'system') {
+function startSession(mode) {
   try {
-    return insertLog.run(type, action, detail, source);
+    const result = insertSession.run(mode);
+    return result.lastInsertRowid;
   } catch (err) {
-    console.error('Database error (addLog):', err.message);
+    console.error('Database error (startSession):', err.message);
+    return null;
   }
 }
 
-// Lấy danh sách logs (có phân trang và lọc)
-function getLogs({ page = 1, limit = 20, type = '', search = '' } = {}) {
+// Kết thúc phiên hoạt động
+const updateSession = db.prepare(`
+  UPDATE sessions 
+  SET end_time = datetime('now', 'localtime'), 
+      duration = ?, 
+      distance = ?,
+      status = 'ended'
+  WHERE id = ?
+`);
+
+function endSession(id, duration, distance) {
+  try {
+    return updateSession.run(duration, distance, id);
+  } catch (err) {
+    console.error('Database error (endSession):', err.message);
+  }
+}
+
+// Lấy danh sách sessions (có phân trang và lọc theo mode)
+function getSessions({ page = 1, limit = 15, mode = '' } = {}) {
   const offset = (page - 1) * limit;
-  let where = 'WHERE 1=1';
+  let where = "WHERE status = 'ended'";
   const params = [];
 
-  if (type) {
-    where += ' AND type = ?';
-    params.push(type);
-  }
-  if (search) {
-    where += ' AND (action LIKE ? OR detail LIKE ?)';
-    params.push(`%${search}%`, `%${search}%`);
+  if (mode) {
+    where += ' AND mode = ?';
+    params.push(mode);
   }
 
-  const countStmt = db.prepare(`SELECT COUNT(*) as total FROM logs ${where}`);
-  const total = countStmt.get(...params).total;
+  const total = db.prepare(`SELECT COUNT(*) as total FROM sessions ${where}`).get(...params).total;
 
-  const dataStmt = db.prepare(`
-    SELECT * FROM logs ${where} ORDER BY id DESC LIMIT ? OFFSET ?
-  `);
-  const logs = dataStmt.all(...params, limit, offset);
+  const sessions = db.prepare(`
+    SELECT * FROM sessions ${where} ORDER BY id DESC LIMIT ? OFFSET ?
+  `).all(...params, limit, offset);
 
   return {
-    logs,
+    sessions,
     total,
     page,
     limit,
@@ -74,36 +88,39 @@ function getLogs({ page = 1, limit = 20, type = '', search = '' } = {}) {
   };
 }
 
-// Lấy thống kê
-function getStats() {
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-  const totalLogs = db.prepare('SELECT COUNT(*) as count FROM logs').get().count;
-  const todayLogs = db.prepare(
-    "SELECT COUNT(*) as count FROM logs WHERE date(timestamp) = date('now', 'localtime')"
+// Lấy thống kê tổng hợp
+function getSessionStats() {
+  const totalSessions = db.prepare("SELECT COUNT(*) as count FROM sessions WHERE status = 'ended'").get().count;
+  
+  const todaySessions = db.prepare(
+    "SELECT COUNT(*) as count FROM sessions WHERE status = 'ended' AND date(start_time) = date('now', 'localtime')"
   ).get().count;
 
-  const byType = db.prepare(`
-    SELECT type, COUNT(*) as count FROM logs GROUP BY type ORDER BY count DESC
+  const totalDistance = db.prepare(
+    "SELECT COALESCE(SUM(distance), 0) as total FROM sessions WHERE status = 'ended'"
+  ).get().total;
+
+  const totalDuration = db.prepare(
+    "SELECT COALESCE(SUM(duration), 0) as total FROM sessions WHERE status = 'ended'"
+  ).get().total;
+
+  const byMode = db.prepare(`
+    SELECT mode, COUNT(*) as count, COALESCE(SUM(distance), 0) as totalDistance, 
+           COALESCE(SUM(duration), 0) as totalDuration
+    FROM sessions WHERE status = 'ended' GROUP BY mode
   `).all();
 
-  const recentCommands = db.prepare(`
-    SELECT action, COUNT(*) as count FROM logs 
-    WHERE type = 'command' 
-    GROUP BY action ORDER BY count DESC LIMIT 5
-  `).all();
-
-  return { totalLogs, todayLogs, byType, recentCommands };
+  return { totalSessions, todaySessions, totalDistance, totalDuration, byMode };
 }
 
-// Xóa 1 log theo id
-function deleteLog(id) {
-  return db.prepare('DELETE FROM logs WHERE id = ?').run(id);
+// Xóa 1 session
+function deleteSession(id) {
+  return db.prepare('DELETE FROM sessions WHERE id = ?').run(id);
 }
 
-// Xóa tất cả logs
-function clearAllLogs() {
-  return db.prepare('DELETE FROM logs').run();
+// Xóa tất cả sessions
+function clearAllSessions() {
+  return db.prepare('DELETE FROM sessions').run();
 }
 
 // Đóng database khi tắt server
@@ -111,4 +128,7 @@ function closeDB() {
   db.close();
 }
 
-module.exports = { addLog, getLogs, getStats, deleteLog, clearAllLogs, closeDB };
+module.exports = { 
+  startSession, endSession, getSessions, getSessionStats, 
+  deleteSession, clearAllSessions, closeDB 
+};

@@ -6,11 +6,11 @@
   </div>
 </div>
 
-<!-- Thống kê -->
+<!-- Thống kê tổng hợp -->
 <div class="stats-grid">
   <div class="stat-card">
     <div class="stat-icon">📊</div>
-    <div class="stat-label">Tổng sự kiện</div>
+    <div class="stat-label">Tổng phiên</div>
     <div class="stat-value"><span id="stat-total">0</span></div>
   </div>
   <div class="stat-card">
@@ -19,46 +19,47 @@
     <div class="stat-value"><span id="stat-today">0</span></div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon">🎮</div>
-    <div class="stat-label">Lệnh phổ biến</div>
-    <div class="stat-value" style="font-size: 1.2rem;"><span id="stat-top-cmd">--</span></div>
+    <div class="stat-icon">📏</div>
+    <div class="stat-label">Tổng quãng đường</div>
+    <div class="stat-value">
+      <span id="stat-distance">0</span>
+      <span class="stat-unit">m</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">⏱️</div>
+    <div class="stat-label">Tổng thời gian</div>
+    <div class="stat-value" style="font-size: 1.4rem;"><span id="stat-duration">00:00:00</span></div>
   </div>
 </div>
 
-<!-- Bộ lọc + Tìm kiếm -->
+<!-- Bộ lọc -->
 <div class="logs-container">
   <div class="logs-toolbar">
     <div class="logs-filters">
-      <select id="filter-type" class="logs-select" onchange="filterLogs()">
-        <option value="">🔍 Tất cả loại</option>
-        <option value="command">🎮 Lệnh điều khiển</option>
-        <option value="mode">⚙️ Chuyển chế độ</option>
-        <option value="connection">📡 Kết nối</option>
-        <option value="system">💻 Hệ thống</option>
+      <select id="filter-mode" class="logs-select" onchange="filterSessions()">
+        <option value="">📋 Tất cả</option>
+        <option value="auto">⚡ Tự động</option>
+        <option value="manual">🎮 Điều khiển từ xa</option>
       </select>
-      <input type="text" id="filter-search" class="logs-input" placeholder="🔎 Tìm kiếm..." oninput="debounceSearch()">
     </div>
     <div class="logs-actions">
-      <button class="logs-btn refresh-btn" onclick="loadLogs(1)" title="Làm mới">
-        🔄 Làm mới
-      </button>
-      <button class="logs-btn danger-btn" onclick="confirmClearLogs()" title="Xóa tất cả">
-        🗑️ Xóa tất cả
-      </button>
+      <button class="logs-btn refresh-btn" onclick="loadSessions(1)">🔄 Làm mới</button>
+      <button class="logs-btn danger-btn" onclick="confirmClearSessions()">🗑️ Xóa tất cả</button>
     </div>
   </div>
 
-  <!-- Bảng logs -->
+  <!-- Bảng nhật ký -->
   <div class="logs-table-wrapper">
     <table class="logs-table">
       <thead>
         <tr>
           <th style="width: 40px;">#</th>
-          <th style="width: 160px;">⏰ Thời gian</th>
-          <th style="width: 110px;">📌 Loại</th>
-          <th>📝 Hoạt động</th>
-          <th>📄 Chi tiết</th>
-          <th style="width: 80px;">📡 Nguồn</th>
+          <th style="width: 100px;">📌 Chế độ</th>
+          <th style="width: 150px;">🕐 Bắt đầu</th>
+          <th style="width: 150px;">🕐 Kết thúc</th>
+          <th style="width: 120px;">⏱️ Thời gian</th>
+          <th style="width: 120px;">📏 Quãng đường</th>
           <th style="width: 50px;">🗑️</th>
         </tr>
       </thead>

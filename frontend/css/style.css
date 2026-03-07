@@ -113,6 +113,125 @@ body {
   font-size: 0.95rem;
 }
 
+/* Đồng hồ thời gian thực - nhỏ gọn trong status bar */
+.realtime-clock {
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+
+/* Stats grid 3 cột đều nhau */
+.stats-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* Weather stat card */
+.weather-stat-card {
+  padding: 15px;
+}
+
+.weather-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.weather-card-header .stat-icon {
+  margin-bottom: 0;
+  font-size: 1.5rem;
+}
+
+.province-select {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #e2e8f0;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.province-select:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
+}
+
+.province-select option {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+.weather-placeholder,
+.weather-loading {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  padding: 12px 0;
+}
+
+.weather-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.weather-icon-img {
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.weather-temp {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.weather-desc {
+  text-align: center;
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  text-transform: capitalize;
+  margin-bottom: 6px;
+}
+
+.weather-details {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.weather-aqi {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.aqi-home-badge {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.weather-pm25 {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
 .status-indicator {
   width: 10px;
   height: 10px;
@@ -132,6 +251,9 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 15px;
   margin-bottom: 25px;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .stat-card {
@@ -588,4 +710,467 @@ body {
 @keyframes fadeInDown {
   from { opacity: 0; transform: translateY(-20px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== STUCK ALERT OVERLAY ===== */
+.stuck-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease;
+}
+
+.stuck-card {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border: 2px solid #ef4444;
+  border-radius: 20px;
+  padding: 35px 30px;
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 0 40px rgba(239, 68, 68, 0.3), 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: stuckPulse 2s ease-in-out infinite;
+}
+
+@keyframes stuckPulse {
+  0%, 100% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.3), 0 20px 60px rgba(0, 0, 0, 0.5); }
+  50% { box-shadow: 0 0 60px rgba(239, 68, 68, 0.5), 0 20px 60px rgba(0, 0, 0, 0.5); }
+}
+
+.stuck-icon {
+  font-size: 3.5rem;
+  margin-bottom: 10px;
+  animation: stuckShake 0.6s ease-in-out infinite;
+}
+
+@keyframes stuckShake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-10deg); }
+  75% { transform: rotate(10deg); }
+}
+
+.stuck-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #fca5a5;
+  margin-bottom: 10px;
+}
+
+.stuck-desc {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.stuck-time {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin-bottom: 18px;
+  font-family: 'Consolas', monospace;
+}
+
+.stuck-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.stuck-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: #fff;
+}
+
+.stuck-btn-primary {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.stuck-btn-primary:hover {
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  transform: translateY(-2px);
+}
+
+.stuck-btn-secondary {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+}
+
+.stuck-btn-secondary:hover {
+  background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+  transform: translateY(-2px);
+}
+
+/* ===== DUST/AQI ALERT TOAST ===== */
+.dust-alert-toast {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  max-width: 380px;
+  width: 90%;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border-radius: 16px;
+  padding: 18px 20px;
+  z-index: 1500;
+  animation: toastSlideIn 0.4s ease;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.dust-alert-toast.level-unhealthy {
+  border: 1px solid rgba(249, 115, 22, 0.5);
+  box-shadow: 0 4px 30px rgba(249, 115, 22, 0.2);
+}
+
+.dust-alert-toast.level-bad {
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  box-shadow: 0 4px 30px rgba(239, 68, 68, 0.2);
+}
+
+.dust-alert-toast.level-hazardous {
+  border: 1px solid rgba(147, 51, 234, 0.5);
+  box-shadow: 0 4px 30px rgba(147, 51, 234, 0.2);
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateX(100px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.dust-alert-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.dust-alert-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dust-alert-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 4px;
+}
+
+.dust-alert-text {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.dust-alert-aqi {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fff;
+  margin-right: 6px;
+}
+
+.dust-alert-pm25 {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.dust-alert-close {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.dust-alert-close:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ===== LOGS PAGE - Nhật ký hoạt động ===== */
+.logs-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 25px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.logs-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.logs-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.logs-select {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.3s;
+  cursor: pointer;
+}
+
+.logs-select:focus {
+  border-color: #60a5fa;
+}
+
+.logs-select option {
+  background: #1e293b;
+  color: #fff;
+}
+
+.logs-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.logs-btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: #fff;
+}
+
+.refresh-btn {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.refresh-btn:hover {
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  transform: translateY(-1px);
+}
+
+.danger-btn {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.danger-btn:hover {
+  background: linear-gradient(135deg, #f87171, #ef4444);
+  transform: translateY(-1px);
+}
+
+.page-btn {
+  background: rgba(255, 255, 255, 0.15);
+  min-width: 90px;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.page-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Bảng logs */
+.logs-table-wrapper {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.logs-table thead {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.logs-table th {
+  padding: 12px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: #cbd5e1;
+  white-space: nowrap;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.logs-table td {
+  padding: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #e2e8f0;
+}
+
+.log-row {
+  transition: background 0.2s;
+}
+
+.log-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.log-id {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.log-time {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.log-action {
+  font-weight: 600;
+}
+
+/* Badges chế độ */
+.log-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-auto {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c4b5fd;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.badge-manual {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Nút xóa */
+.log-delete-btn {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.log-delete-btn:hover {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* Trạng thái trống */
+.logs-empty {
+  text-align: center;
+  padding: 40px 20px !important;
+  color: #64748b;
+  font-size: 1rem;
+}
+
+/* Phân trang */
+.logs-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.page-info {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+/* Đồng hồ thời gian thực - nhỏ gọn trong status bar */
+.realtime-clock {
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+
+/* Responsive logs */
+@media (max-width: 768px) {
+  .logs-toolbar {
+    flex-direction: column;
+  }
+
+  .logs-filters {
+    width: 100%;
+  }
+
+  .logs-select {
+    width: 100%;
+  }
+
+  .logs-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .logs-actions .logs-btn {
+    flex: 1;
+  }
+
+  .logs-table {
+    font-size: 0.78rem;
+  }
+
+  .logs-table th, .logs-table td {
+    padding: 8px 6px;
+  }
+
+  .realtime-clock {
+    display: none;
+  }
+
+  .stats-grid-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .weather-stat-card {
+    grid-column: 1 / -1;
+  }
+
+  .weather-temp {
+    font-size: 1.3rem;
+  }
 }

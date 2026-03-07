@@ -184,6 +184,7 @@ void setup() {
 
 void loop() {
   checkCommands();  // Kiểm tra lệnh từ server
+  checkArduinoMessages(); // Đọc thông báo từ Arduino (stuck detection)
 
   // Đăng ký lại với server mỗi 30 giây (phòng khi server restart)
   static unsigned long lastRegister = 0;
@@ -193,6 +194,48 @@ void loop() {
   }
 
   delay(200);
+}
+
+// Đọc message từ Arduino qua UART (stuck alerts)
+void checkArduinoMessages() {
+  static char msgBuffer[20];
+  static int msgIndex = 0;
+  
+  while (uartSerial.available() > 0) {
+    char c = uartSerial.read();
+    if (c == '\n' || c == '\r') {
+      if (msgIndex > 0) {
+        msgBuffer[msgIndex] = '\0';
+        String msg = String(msgBuffer);
+        
+        // Kiểm tra message STUCK
+        if (msg.startsWith("STUCK:")) {
+          String stuckType = msg.substring(6);
+          Serial.println("⚠️ Arduino báo kẹt loại: " + stuckType);
+          reportStuckToServer(stuckType);
+        }
+        
+        msgIndex = 0;
+      }
+    } else if (msgIndex < sizeof(msgBuffer) - 1) {
+      msgBuffer[msgIndex++] = c;
+    }
+  }
+}
+
+// Gửi stuck alert tới Node.js server
+void reportStuckToServer(String type) {
+  if (WiFi.status() != WL_CONNECTED) return;
+  HTTPClient http;
+  String url = String(serverUrl) + "/report_stuck?type=" + type;
+  http.begin(url);
+  int code = http.GET();
+  if (code > 0) {
+    Serial.println("Stuck alert sent to server: type " + type);
+  } else {
+    Serial.println("Failed to send stuck alert");
+  }
+  http.end();
 }
 
 // Hàm kiểm tra lệnh từ server Node.js
