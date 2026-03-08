@@ -107,7 +107,7 @@ void loop() {
         checkStuckSpace(currentTime);
       } else {
         distance = readFront();
-        if (distance <= 20) {
+        if (distance <= 10) {
           // Phát hiện vật cản → bắt đầu chuỗi tránh
           moveStop();
           autoState = 1;
@@ -137,7 +137,7 @@ void loop() {
       }
       autoState = 4;
       lastActionTime = currentTime;
-    } else if (autoState == 4 && currentTime - lastActionTime >= 300) {
+    } else if (autoState == 4 && currentTime - lastActionTime >= 500) {
       moveStop();
       autoState = 0;
       // Nếu đã thoát kẹt (ít avoidance) → cho phép báo lại
@@ -244,19 +244,19 @@ void moveBackward() {
 void turnRight() {
   analogWrite(ena, 200);
   analogWrite(enb, 200);
-  digitalWrite(LeftMotorForward, HIGH);
-  digitalWrite(RightMotorBackward, HIGH);
-  digitalWrite(LeftMotorBackward, LOW);
-  digitalWrite(RightMotorForward, LOW);
+  digitalWrite(LeftMotorBackward, HIGH);
+  digitalWrite(RightMotorForward, HIGH);
+  digitalWrite(LeftMotorForward, LOW);
+  digitalWrite(RightMotorBackward, LOW);
 }
 
 void turnLeft() {
   analogWrite(ena, 200);
   analogWrite(enb, 200);
-  digitalWrite(LeftMotorBackward, HIGH);
-  digitalWrite(RightMotorForward, HIGH);
-  digitalWrite(LeftMotorForward, LOW);
-  digitalWrite(RightMotorBackward, LOW);
+  digitalWrite(LeftMotorForward, HIGH);
+  digitalWrite(RightMotorBackward, HIGH);
+  digitalWrite(LeftMotorBackward, LOW);
+  digitalWrite(RightMotorForward, LOW);
 }
 
 // ===== STUCK DETECTION FUNCTIONS =====

@@ -8,7 +8,7 @@
 const char* ssid = "Penny";         // Tên WiFi
 const char* password = "123456789";    // Mật khẩu WiFi
 
-const char* serverUrl = "http://10.238.109.248:5000";  // IP laptop chạy Node.js (thay bằng IP của bạn)
+const char* serverUrl = "http://10.73.172.248:5000";  // IP laptop chạy Node.js (thay bằng IP của bạn)
 
 #if defined(CAMERA_MODEL_AI_THINKER)
 #define PWDN_GPIO_NUM     32
