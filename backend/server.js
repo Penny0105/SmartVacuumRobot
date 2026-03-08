@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 const { 
   startSession, endSession, getSessions, getSessionStats, 
   deleteSession, clearAllSessions, closeDB 
@@ -194,13 +195,67 @@ app.get('/get_command', (req, res) => {
   }
 });
 
-// Camera stream - redirect tới ESP32 MJPEG stream
+// Camera stream - proxy MJPEG stream từ ESP32 qua server
+// Chỉ cho phép 1 kết nối proxy tại một thời điểm (ESP32 chỉ serve 1 stream)
+let activeCameraProxyReq = null;
+
 app.get('/camera_stream', (req, res) => {
-  if (esp32StreamUrl) {
-    res.redirect(esp32StreamUrl);
-  } else {
-    res.status(204).send(); // Chưa có ESP32 kết nối
+  if (!esp32StreamUrl) {
+    return res.status(204).send(); // Chưa có ESP32 kết nối
   }
+
+  // Hủy kết nối proxy cũ để ESP32 có thể nhận kết nối mới
+  if (activeCameraProxyReq) {
+    activeCameraProxyReq.destroy();
+    activeCameraProxyReq = null;
+    console.log('🔄 Đóng kết nối camera proxy cũ');
+  }
+
+  // Tạo proxy request mới tới ESP32 MJPEG stream
+  const proxyReq = http.get(esp32StreamUrl, (streamRes) => {
+    // Forward headers từ ESP32 sang browser
+    res.setHeader('Content-Type', streamRes.headers['content-type'] || 'multipart/x-mixed-replace;boundary=123456789000000000000987654321');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    // Pipe dữ liệu MJPEG từ ESP32 → Server → Browser
+    streamRes.pipe(res);
+
+    // Cleanup khi browser ngắt kết nối
+    req.on('close', () => {
+      streamRes.destroy();
+      proxyReq.destroy();
+      if (activeCameraProxyReq === proxyReq) {
+        activeCameraProxyReq = null;
+        console.log('📷 Browser ngắt camera stream, đã cleanup proxy');
+      }
+    });
+  });
+
+  proxyReq.on('error', (err) => {
+    console.log('Camera proxy error:', err.message);
+    if (!res.headersSent) {
+      res.status(502).send('ESP32 stream unavailable');
+    }
+    if (activeCameraProxyReq === proxyReq) {
+      activeCameraProxyReq = null;
+    }
+  });
+
+  // Timeout 5s nếu ESP32 không phản hồi
+  proxyReq.setTimeout(5000, () => {
+    console.log('Camera proxy timeout - ESP32 không phản hồi');
+    proxyReq.destroy();
+    if (!res.headersSent) {
+      res.status(504).send('ESP32 stream timeout');
+    }
+    if (activeCameraProxyReq === proxyReq) {
+      activeCameraProxyReq = null;
+    }
+  });
+
+  activeCameraProxyReq = proxyReq;
 });
 
 // ===== STUCK DETECTION ENDPOINTS =====

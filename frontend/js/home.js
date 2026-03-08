@@ -38,6 +38,9 @@ function initHomePage() {
   // Kiểm tra robot bị kẹt mỗi 2 giây
   if (stuckCheckInterval) clearInterval(stuckCheckInterval);
   stuckCheckInterval = setInterval(checkStuckStatus, 2000);
+
+  // Kết nối lại camera stream ngay khi quay lại trang home
+  refreshCamera();
 }
 
 // Send command to server
@@ -372,6 +375,19 @@ function dismissDustAlert() {
   hideDustAlert();
 }
 
+// Reload camera stream thủ công (khi bị đơ/crash)
+function reloadCamera() {
+  const img = document.getElementById('cameraStream');
+  const overlay = document.getElementById('camera-waiting-overlay');
+  if (img) {
+    img.dataset.streaming = 'false';
+    img.src = '';
+  }
+  if (overlay) overlay.style.display = 'flex';
+  // Kết nối lại sau 500ms
+  setTimeout(refreshCamera, 500);
+}
+
 // Refresh camera stream - kết nối tới MJPEG stream từ ESP32
 function refreshCamera() {
   if (currentPage !== 'home') return;
@@ -383,13 +399,13 @@ function refreshCamera() {
   // Nếu đang stream rồi thì không cần làm gì
   if (img.dataset.streaming === 'true') return;
 
-  // Lấy URL stream MJPEG từ server
+  // Kiểm tra ESP32 đã kết nối chưa, rồi dùng server proxy
   fetch('/esp32_stream_url')
     .then(res => res.json())
     .then(data => {
-      if (data.url && data.connected) {
-        // Kết nối tới MJPEG stream của ESP32
-        img.src = data.url;
+      if (data.connected) {
+        // Kết nối qua server proxy (server pipe stream từ ESP32)
+        img.src = '/camera_stream?' + Date.now();
         img.dataset.streaming = 'true';
 
         img.onload = () => {
